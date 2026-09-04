@@ -137,19 +137,24 @@ html, body {
 }
 #hint .sep { opacity: 0.45; }
 
-/* ===== Метки городов ===== */
+/* ===== Метки (пул: страны / города мира / избранные) ===== */
 #labels { position: fixed; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
-.city-label {
+.glabel {
   position: absolute; left: 0; top: 0;
-  transform: translate(-50%, calc(-100% - 10px));
   font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em;
   color: #cfe6ff;
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.9);
   white-space: nowrap;
   will-change: transform, opacity;
 }
-.city-label.home { color: var(--accent); font-weight: 700; }
-.city-label.home::before { content: "🛬 "; font-size: 10px; }
+.glabel.minor { font-size: 10px; font-weight: 500; color: #b9c9e6; }
+.glabel.country {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #dce6f5;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.9);
+}
+.glabel.home { color: var(--accent); font-weight: 700; }
+.glabel.home::before { content: "🛬 "; font-size: 10px; }
 
 /* ===== Карточка города ===== */
 #tooltip {

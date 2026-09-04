@@ -54,15 +54,17 @@ try {
 
   const state = await page.evaluate(() => {
     const fatal = document.getElementById('fatal');
-    const labels = [...document.querySelectorAll('.city-label')];
+    const labels = [...document.querySelectorAll('#labels .glabel')];
+    const g = window.__GLOBE__ || {};
     return {
       fatalHidden: fatal ? fatal.hidden : true,
       canvasCount: document.querySelectorAll('#app canvas').length,
-      labelCount: labels.length,
+      labelPoolSize: labels.length,
       visibleLabels: labels.filter(l => parseFloat(l.style.opacity || '0') > 0.3).length,
-      firstLabels: labels.slice(0, 3).map(l => l.textContent),
+      sampleLabels: labels.filter(l => parseFloat(l.style.opacity || '0') > 0.3).slice(0, 5).map(l => l.textContent),
+      globe: { cities: g.N || 0, countries: g.countries?.length || 0, borders: g.bordersSegments || 0, ccTable: g.ccTable?.length || 0 },
       tooltipExists: !!document.getElementById('tooltip'),
-      toggles: ['tg-clouds', 'tg-arcs', 'tg-labels', 'tg-rotate', 'tg-tour'].map(id => document.getElementById(id)?.checked),
+      toggles: ['tg-clouds', 'tg-arcs', 'tg-points', 'tg-borders', 'tg-labels', 'tg-rotate', 'tg-tour'].map(id => document.getElementById(id)?.checked),
     };
   });
   console.log('STATE:', JSON.stringify(state, null, 2));

@@ -436,7 +436,7 @@ const cloudsMat = new THREE.ShaderMaterial({
 });
 
 const clouds = new THREE.Mesh(new THREE.SphereGeometry(1.018, 120, 90), cloudsMat);
-clouds.renderOrder = 1;
+clouds.renderOrder = 3;
 scene.add(clouds);
 
 /* ---------- Атмосфера (внешнее свечение) ---------- */
@@ -471,7 +471,7 @@ const atmosphere = new THREE.Mesh(
     `,
   })
 );
-atmosphere.renderOrder = 4;
+atmosphere.renderOrder = 6;
 scene.add(atmosphere);
 
 /* ---------- Маркеры городов + HTML-метки ---------- */
@@ -490,7 +490,7 @@ const markerGroups = CITIES.map((city, i) => {
   }));
   dot.scale.setScalar(isHome ? 0.06 : 0.048);
   dot.position.copy(pos);
-  dot.renderOrder = 3;
+  dot.renderOrder = 5;
   dot.userData.cityIndex = i;
   scene.add(dot);
 
@@ -499,16 +499,289 @@ const markerGroups = CITIES.map((city, i) => {
     transparent: true, depthWrite: false, depthTest: true, opacity: 0,
   }));
   ring.position.copy(pos);
-  ring.renderOrder = 3;
+  ring.renderOrder = 5;
   scene.add(ring);
 
-  const label = document.createElement('div');
-  label.className = 'city-label' + (isHome ? ' home' : '');
-  label.textContent = city.name;
-  labelsEl.appendChild(label);
-
-  return { city, isHome, pos, dot, ring, label, ringOffset: i * 0.37 };
+  return { city, isHome, pos, dot, ring, ringOffset: i * 0.37 };
 });
+
+/* ---------- МИР: 122 тыс. городов, все страны, границы ---------- */
+
+const world = {
+  N: 0, latArr: null, lonArr: null, popArr: null, nameOff: null, names: '',
+  countries: [], countryByCC: new Map(), countryVecs: [], bordersSegments: 0,
+};
+
+let pointsCloud = null;
+let bordersLines = null;
+
+const pointsUniforms = {
+  uCamDist: { value: 3.1 },
+  uScale:   { value: 1000 },
+  uSunDir:  { value: sunDir },
+};
+
+/** Загрузка данных с учётом прогресс-бара (LoadingManager) */
+function trackFetch(name, url, process) {
+  manager.itemStart(name);
+  return fetch(url)
+    .then(r => { if (!r.ok) throw new Error(url + ' → HTTP ' + r.status); return r.arrayBuffer(); })
+    .then(buf => process(buf))
+    .catch(err => { console.warn('Данные не загрузились:', err.message); return null; })
+    .finally(() => manager.itemEnd(name));
+}
+
+trackFetch('cities.bin', 'data/cities.bin', buf => {
+  const N = new DataView(buf).getUint32(0, true);
+  world.N = N;
+  world.latArr = new Float32Array(buf, 4, N);
+  world.lonArr = new Float32Array(buf, 4 + N * 4, N);
+  world.popArr = new Float32Array(buf, 4 + N * 8, N);
+  world.nameOff = new Uint32Array(buf, 4 + N * 12, N);
+  world.namesBytes = new Uint8Array(buf, 4 + N * 16);
+
+  // геометрия облака точек (все города разом)
+  const positions = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const v = latLonToVec3(world.latArr[i], world.lonArr[i], 1.004);
+    positions[i * 3] = v.x; positions[i * 3 + 1] = v.y; positions[i * 3 + 2] = v.z;
+  }
+  world.positions = positions;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('aPop', new THREE.BufferAttribute(world.popArr, 1));
+
+  const mat = new THREE.ShaderMaterial({
+    uniforms: pointsUniforms,
+    transparent: true,
+    depthWrite: false,
+    vertexShader: /* glsl */`
+      attribute float aPop;
+      uniform float uCamDist;
+      uniform float uScale;
+      uniform vec3 uSunDir;
+      varying float vAlpha;
+      varying float vNight;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        float z = clamp((uCamDist - 1.35) / 8.65, 0.0, 1.0);
+        float thr = 2000.0 + (3e6 - 2000.0) * pow(z, 1.15); // LOD по зуму
+        vAlpha = smoothstep(thr, thr * 1.9, aPop);
+        float sW = mix(0.006, 0.032, clamp(pow(aPop / 2.4e7, 0.3), 0.0, 1.0));
+        float px = sW * uScale / max(0.05, -mv.z);
+        gl_PointSize = min(px, 14.0);
+        vNight = 1.0 - smoothstep(-0.12, 0.12, dot(normalize(position), uSunDir));
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */`
+      varying float vAlpha;
+      varying float vNight;
+      void main() {
+        float d = length(gl_PointCoord - 0.5);
+        float a = smoothstep(0.5, 0.16, d) * vAlpha;
+        if (a < 0.02) discard;
+        vec3 col = mix(vec3(0.50, 0.85, 1.0), vec3(1.0, 0.82, 0.5), vNight * 0.85);
+        gl_FragColor = vec4(col, a * 0.9);
+      }
+    `,
+  });
+  pointsCloud = new THREE.Points(geo, mat);
+  pointsCloud.renderOrder = 2;
+  scene.add(pointsCloud);
+  if (typeof applyToggles === 'function') applyToggles();
+  return N;
+});
+
+trackFetch('countries.json', 'data/countries.json', buf => {
+  world.countries = JSON.parse(new TextDecoder().decode(buf));
+  world.countryByCC = new Map(world.countries.map(c => [c.cc, c]));
+  world.countryVecs = world.countries.map(c => latLonToVec3(c.lat, c.lon, 1));
+  return world.countries.length;
+});
+
+trackFetch('cc-table.json', 'data/cc-table.json', buf => {
+  world.ccTable = JSON.parse(new TextDecoder().decode(buf));
+  return world.ccTable.length;
+});
+
+trackFetch('city-cc.bin', 'data/city-cc.bin', buf => {
+  if (buf.byteLength !== world.N) throw new Error('city-cc.bin размер не совпал');
+  world.cityCC = new Uint8Array(buf, 0, world.N);
+  return world.N;
+});
+
+trackFetch('borders.json', 'data/borders.json', buf => {
+  const lines = JSON.parse(new TextDecoder().decode(buf));
+  const verts = [];
+  const R = 1.0015;
+  let segments = 0;
+  for (const poly of lines) {
+    for (let i = 0; i < poly.length - 1; i++) {
+      const a = latLonToVec3(poly[i][1], poly[i][0], R);
+      const b = latLonToVec3(poly[i + 1][1], poly[i + 1][0], R);
+      verts.push(a.x, a.y, a.z, b.x, b.y, b.z);
+      segments++;
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  bordersLines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+    color: 0x8fc6ff, transparent: true, opacity: 0.22, depthWrite: false,
+  }));
+  bordersLines.renderOrder = 1;
+  scene.add(bordersLines);
+  world.bordersSegments = segments;
+  if (typeof applyToggles === 'function') applyToggles();
+  return segments;
+});
+
+function refreshPointsScale() {
+  // мировой размер → пиксели: (H/2)/tan(fov/2); canvas.height уже в device-пикселях
+  pointsUniforms.uScale.value = renderer.domElement.height * 0.5 / Math.tan(camera.fov * DEG * 0.5);
+}
+refreshPointsScale();
+
+const _td = new TextDecoder('utf-8');
+function cityName(i) {
+  // nameOff — БАЙТОВЫЕ смещения: режем байты, потом декодируем
+  const a = world.nameOff[i];
+  const b = i + 1 < world.N ? world.nameOff[i + 1] : world.namesBytes.length;
+  return _td.decode(world.namesBytes.subarray(a, b));
+}
+
+function fmtPopFull(p) {
+  return p >= 1e6
+    ? (p / 1e6).toFixed(1).replace('.', ',').replace(',0', '') + ' млн'
+    : Math.round(p).toLocaleString('ru-RU');
+}
+
+/** Приблизительное солнечное время по долготе */
+function solarTime(lon) {
+  const now = new Date();
+  let m = Math.round(now.getUTCHours() * 60 + now.getUTCMinutes() + lon * 4);
+  m = ((m % 1440) + 1440) % 1440;
+  return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+}
+
+/* ---------- Пул динамических меток (страны + города мира + избранные) ---------- */
+
+const POOL_SIZE = 46;
+const labelPool = [];
+for (let i = 0; i < POOL_SIZE; i++) {
+  const el = document.createElement('div');
+  el.className = 'glabel';
+  el.style.opacity = '0';
+  labelsEl.appendChild(el);
+  labelPool.push(el);
+}
+const activeLabels = [];
+
+const _proj = new THREE.Vector3();
+const _v3 = new THREE.Vector3();
+
+function selectLabels() {
+  activeLabels.length = 0;
+  const camDist = camera.position.length();
+  const camDir = _v3.copy(camera.position).normalize();
+  const horizon = 1 / camDist;
+  const W = window.innerWidth, H = window.innerHeight;
+  const placed = [];
+
+  const tryPlace = (vec, sep) => {
+    _proj.copy(vec).project(camera);
+    if (_proj.z > 1) return false;
+    const x = (_proj.x * 0.5 + 0.5) * W;
+    const y = (-_proj.y * 0.5 + 0.5) * H;
+    if (x < -60 || x > W + 60 || y < -60 || y > H + 60) return false;
+    for (const p of placed) {
+      const dx = p.x - x, dy = p.y - y;
+      const need = (p.sep + sep) * 0.5;
+      if (dx * dx + dy * dy < need * need) return false;
+    }
+    placed.push({ x, y, sep });
+    return true;
+  };
+
+  const push = (kind, lat, lon, alpha, text) => {
+    if (activeLabels.length >= POOL_SIZE) return;
+    const el = labelPool[activeLabels.length];
+    el.className = kind;
+    el.textContent = text;
+    activeLabels.push({ el, kind, lat, lon, alpha });
+  };
+
+  // 1) Названия стран — при далёком зуме
+  if (tgLabels.checked && world.countries.length && camDist > 3.05) {
+    const cAlpha = THREE.MathUtils.smoothstep(camDist, 3.05, 3.7);
+    let count = 0;
+    for (let i = 0; i < world.countryVecs.length && count < 10; i++) {
+      const v = world.countryVecs[i];
+      if (v.dot(camDir) < horizon) continue;
+      if (tryPlace(v, 110)) {
+        const c = world.countries[i];
+        push('glabel country', c.lat, c.lon, cAlpha, c.flag + ' ' + c.ru);
+        count++;
+      }
+    }
+  }
+
+  // 2) Избранные 30 городов — всегда
+  if (tgLabels.checked) {
+    for (const m of markerGroups) {
+      if (!m.dot.visible) continue;
+      const facing = m.pos.dot(camDir) / m.pos.length();
+      const fade = THREE.MathUtils.smoothstep(facing, horizon, horizon + 0.18);
+      if (fade <= 0.02) continue;
+      if (tryPlace(m.pos, 26)) {
+        push('glabel city' + (m.isHome ? ' home' : ''), m.city.lat, m.city.lon, fade, m.city.name);
+      }
+    }
+  }
+
+  // 3) Города мира — по населению, порог падает с зумом
+  if (tgLabels.checked && world.N) {
+    const z = THREE.MathUtils.clamp((camDist - 1.35) / 8.65, 0, 1);
+    const labelThr = 2e5 + (8e6 - 2e5) * Math.pow(z, 1.05);
+    let count = 0;
+    const px = world.positions;
+    for (let i = 0; i < world.N && world.popArr[i] >= labelThr && count < 22; i++) {
+      const o = i * 3;
+      const facing = px[o] * camDir.x + px[o + 1] * camDir.y + px[o + 2] * camDir.z;
+      if (facing < horizon + 0.02) continue;
+      _proj.set(px[o], px[o + 1], px[o + 2]);
+      if (tryPlace(_proj, 34)) {
+        push('glabel minor', world.latArr[i], world.lonArr[i], 0.85, cityName(i));
+        count++;
+      }
+    }
+  }
+}
+
+function updateLabelPool() {
+  if (!tgLabels.checked) { labelPool.forEach(el => el.style.opacity = '0'); return; }
+  const camDist = camera.position.length();
+  const camDir = _v3.copy(camera.position).normalize();
+  const horizon = 1 / camDist;
+  for (let i = 0; i < labelPool.length; i++) {
+    const a = activeLabels[i];
+    const el = labelPool[i];
+    if (!a) { if (el.style.opacity !== '0') el.style.opacity = '0'; continue; }
+    const r = a.kind.includes('country') ? 1.0 : 1.004;
+    const v = latLonToVec3(a.lat, a.lon, r);
+    const facing = v.dot(camDir);
+    const fade = THREE.MathUtils.smoothstep(facing, horizon, horizon + 0.18);
+    v.project(camera);
+    const x = (v.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-v.y * 0.5 + 0.5) * window.innerHeight;
+    const offset = a.kind.includes('country') ? 0 : 12;
+    el.style.transform = `translate(-50%, calc(-100% - ${offset}px)) translate(${x}px, ${y}px)`;
+    el.style.opacity = (a.alpha * fade).toFixed(2);
+  }
+}
+
+// данные и счётчики для тестов
+window.__GLOBE__ = world;
 
 /* ---------- Маршруты (дуги) из дома ---------- */
 
@@ -579,7 +852,7 @@ markerGroups.forEach(({ city, isHome, pos }) => {
     `,
   });
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.renderOrder = 2;
+  mesh.renderOrder = 4;
   arcsGroup.add(mesh);
   arcMats.push(mat);
 });
@@ -640,15 +913,18 @@ tgRotate.addEventListener('change', () => {
 const tgClouds = document.getElementById('tg-clouds');
 const tgArcs = document.getElementById('tg-arcs');
 const tgLabels = document.getElementById('tg-labels');
+const tgPoints = document.getElementById('tg-points');
+const tgBorders = document.getElementById('tg-borders');
 
 function applyToggles() {
   clouds.visible = tgClouds.checked;
   arcsGroup.visible = tgArcs.checked;
+  if (pointsCloud) pointsCloud.visible = tgPoints.checked;
+  if (bordersLines) bordersLines.visible = tgBorders.checked;
   const showLabels = tgLabels.checked;
   markerGroups.forEach(m => { m.dot.visible = showLabels; m.ring.visible = showLabels; });
-  labelsEl.style.display = showLabels ? '' : 'none';
 }
-[tgClouds, tgArcs, tgLabels].forEach(t => t.addEventListener('change', applyToggles));
+[tgClouds, tgArcs, tgLabels, tgPoints, tgBorders].forEach(t => t.addEventListener('change', applyToggles));
 applyToggles();
 
 /* ---------- Режим «Полёт по маршруту» 🛫 ---------- */
@@ -669,7 +945,7 @@ const comet = new THREE.Sprite(new THREE.SpriteMaterial({
 }));
 comet.scale.setScalar(0.075);
 comet.visible = false;
-comet.renderOrder = 3;
+comet.renderOrder = 5;
 scene.add(comet);
 
 // подсвеченная дуга текущего перелёта
@@ -681,7 +957,7 @@ const tourArc = new THREE.Mesh(
   })
 );
 tourArc.visible = false;
-tourArc.renderOrder = 2;
+tourArc.renderOrder = 4;
 scene.add(tourArc);
 
 /** Маршрут: «жадный» ближайший сосед от дома с возвратом домой */
@@ -813,6 +1089,9 @@ renderer.domElement.addEventListener('pointerdown', () => { if (tourOn) stopTour
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2(-10, -10);
 let hovered = null;
+let hoverMinor = -1;      // индекс города мира под курсором
+let minorHoverAt = 0;
+let labelSelectAt = 0;
 let downX = 0, downY = 0;
 
 renderer.domElement.addEventListener('pointermove', e => {
@@ -822,7 +1101,11 @@ renderer.domElement.addEventListener('pointermove', e => {
 renderer.domElement.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY; });
 renderer.domElement.addEventListener('pointerup', e => {
   if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return; // это было вращение
-  if (hovered !== null) flyToCity(CITIES[hovered]);
+  if (hovered !== null) { flyToCity(CITIES[hovered]); return; }
+  if (hoverMinor >= 0 && world.latArr) {
+    const dir = latLonToVec3(world.latArr[hoverMinor], world.lonArr[hoverMinor], 1).normalize();
+    flyToDir(dir, THREE.MathUtils.clamp(camera.position.length(), 1.9, 2.4), 1400, () => scheduleAutoRotate());
+  }
 });
 
 const tooltip = document.getElementById('tooltip');
@@ -856,30 +1139,17 @@ function setHovered(idx, screenX, screenY) {
   renderer.domElement.style.cursor = 'pointer';
 }
 
-/* ---------- Метки: проекция на экран каждый кадр ---------- */
-
-const tmpVec = new THREE.Vector3();
-const camDir = new THREE.Vector3();
-
-function updateLabels() {
-  if (!tgLabels.checked) return;
-  camera.getWorldPosition(tmpVec);
-  const camDist = tmpVec.length();
-  camDir.copy(tmpVec).normalize();
-  const horizon = 1 / camDist; // скалярно: видно то, что выше горизонта
-
-  markerGroups.forEach(m => {
-    m.dot.getWorldPosition(tmpVec);
-    const nDot = tmpVec.x * camDir.x + tmpVec.y * camDir.y + tmpVec.z * camDir.z; // ~cos угла
-    const facing = nDot / tmpVec.length();
-    const px = tmpVec.clone().project(camera);
-    const x = (px.x * 0.5 + 0.5) * window.innerWidth;
-    const y = (-px.y * 0.5 + 0.5) * window.innerHeight;
-    const fade = THREE.MathUtils.smoothstep(facing, horizon, horizon + 0.18);
-    const visible = fade > 0.02 && px.z < 1;
-    m.label.style.transform = `translate(-50%, calc(-100% - 10px)) translate(${x}px, ${y}px)`;
-    m.label.style.opacity = visible ? fade.toFixed(2) : '0';
-  });
+/** Карточка города из мировой базы (122 тыс.) */
+function showMinorTooltip(i, sx, sy) {
+  const cc = world.cityCC && world.ccTable ? world.ccTable[world.cityCC[i]] : null;
+  ttName.textContent = cityName(i);
+  ttCountry.textContent = cc ? `${cc.ru} ${cc.flag}` : '';
+  ttTime.textContent = solarTime(world.lonArr[i]) + ' ☀';
+  ttPop.textContent = 'Население: ' + fmtPopFull(world.popArr[i]);
+  tooltip.style.left = sx + 'px';
+  tooltip.style.top = sy + 'px';
+  tooltip.classList.add('show');
+  renderer.domElement.style.cursor = 'pointer';
 }
 
 /* ---------- Размер окна ---------- */
@@ -888,6 +1158,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  refreshPointsScale();
 });
 
 /* ---------- Цикл анимации (единственный) ---------- */
@@ -926,28 +1197,57 @@ function animate() {
   // дуги: время
   arcMats.forEach(m => { m.uniforms.uTime.value = t; });
 
-  // ховер по спрайтам (лучи пускаем раз в кадр)
+  // ховер: избранные маркеры — каждый кадр; города мира — не чаще 120 мс
   if (!flying) {
     raycaster.setFromCamera(pointer, camera);
     const hits = raycaster.intersectObjects(markerGroups.filter(m => m.dot.visible).map(m => m.dot), false);
     if (hits.length) {
+      hoverMinor = -1;
       const idx = hits[0].object.userData.cityIndex;
       const proj = markerGroups[idx].pos.clone().project(camera);
-      const sx = (proj.x * 0.5 + 0.5) * window.innerWidth;
-      const sy = (-proj.y * 0.5 + 0.5) * window.innerHeight;
-      setHovered(idx, sx, sy);
+      setHovered(idx, (proj.x * 0.5 + 0.5) * window.innerWidth, (-proj.y * 0.5 + 0.5) * window.innerHeight);
       if (now > tooltipRefreshAt) {
         ttTime.textContent = localTime(CITIES[idx].tz);
         tooltipRefreshAt = now + 15000;
       }
     } else {
       setHovered(null, 0, 0);
+      if (pointsCloud && pointsCloud.visible && world.N && now > minorHoverAt) {
+        minorHoverAt = now + 120;
+        const camDist = camera.position.length();
+        raycaster.params.Points.threshold = 0.0038 * Math.max(1, camDist * 0.55);
+        const ph = raycaster.intersectObject(pointsCloud, false);
+        const horizon = 1 / camDist;
+        const z = THREE.MathUtils.clamp((camDist - 1.35) / 8.65, 0, 1);
+        const thr = (2000 + (3e6 - 2000) * Math.pow(z, 1.15)) * 0.7;
+        hoverMinor = -1;
+        _v3.copy(camera.position).normalize();
+        for (const h of ph) {
+          const i = h.index, o = i * 3;
+          const facing = world.positions[o] * _v3.x + world.positions[o + 1] * _v3.y + world.positions[o + 2] * _v3.z;
+          if (facing < horizon || world.popArr[i] < thr) continue;
+          hoverMinor = i;
+          break;
+        }
+      }
+      if (hoverMinor >= 0) {
+        const o = hoverMinor * 3;
+        _proj.set(world.positions[o], world.positions[o + 1], world.positions[o + 2]).project(camera);
+        showMinorTooltip(hoverMinor, (_proj.x * 0.5 + 0.5) * window.innerWidth, (-proj.y * 0.5 + 0.5) * window.innerHeight);
+      }
     }
   } else {
+    hoverMinor = -1;
     setHovered(null, 0, 0);
   }
 
-  updateLabels();
+  // метки: пересборка списка каждые 160 мс, позиции — каждый кадр
+  if (now > labelSelectAt) { selectLabels(); labelSelectAt = now + 160; }
+  updateLabelPool();
+
+  // LOD-порог облака точек
+  pointsUniforms.uCamDist.value = camera.position.length();
+
   renderer.render(scene, camera);
 }
 
