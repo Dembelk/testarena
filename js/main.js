@@ -14,21 +14,41 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const HOME = 'Франкфурт';
 
 const CITIES = [
+  // Европа
   { name: 'Франкфурт',      country: 'Германия',        lat: 50.11,  lon: 8.68,   tz: 'Europe/Berlin',      popM: 0.8 },
   { name: 'Лондон',         country: 'Великобритания',  lat: 51.51,  lon: -0.13,  tz: 'Europe/London',      popM: 8.9 },
   { name: 'Париж',          country: 'Франция',         lat: 48.86,  lon: 2.35,   tz: 'Europe/Paris',       popM: 2.1 },
+  { name: 'Мадрид',         country: 'Испания',         lat: 40.42,  lon: -3.70,  tz: 'Europe/Madrid',      popM: 3.3 },
+  { name: 'Рим',            country: 'Италия',          lat: 41.89,  lon: 12.51,  tz: 'Europe/Rome',        popM: 2.8 },
+  { name: 'Стокгольм',      country: 'Швеция',          lat: 59.33,  lon: 18.06,  tz: 'Europe/Stockholm',   popM: 1.0 },
+  { name: 'Рейкьявик',      country: 'Исландия',        lat: 64.15,  lon: -21.94, tz: 'Atlantic/Reykjavik', popM: 0.14 },
   { name: 'Стамбул',        country: 'Турция',          lat: 41.01,  lon: 28.98,  tz: 'Europe/Istanbul',    popM: 15.6 },
   { name: 'Москва',         country: 'Россия',          lat: 55.76,  lon: 37.62,  tz: 'Europe/Moscow',      popM: 13.1 },
-  { name: 'Дубай',          country: 'ОАЭ',             lat: 25.20,  lon: 55.27,  tz: 'Asia/Dubai',         popM: 3.6 },
-  { name: 'Дели',           country: 'Индия',           lat: 28.61,  lon: 77.21,  tz: 'Asia/Kolkata',       popM: 32.9 },
-  { name: 'Сингапур',       country: 'Сингапур',        lat: 1.35,   lon: 103.82, tz: 'Asia/Singapore',     popM: 6.0 },
-  { name: 'Пекин',          country: 'Китай',           lat: 39.90,  lon: 116.40, tz: 'Asia/Shanghai',      popM: 21.9 },
-  { name: 'Токио',          country: 'Япония',          lat: 35.68,  lon: 139.69, tz: 'Asia/Tokyo',         popM: 13.9 },
-  { name: 'Сидней',         country: 'Австралия',       lat: -33.87, lon: 151.21, tz: 'Australia/Sydney',   popM: 5.3 },
+  // Африка и Ближний Восток
+  { name: 'Каир',           country: 'Египет',          lat: 30.04,  lon: 31.24,  tz: 'Africa/Cairo',       popM: 10.1 },
+  { name: 'Лагос',          country: 'Нигерия',         lat: 6.52,   lon: 3.38,   tz: 'Africa/Lagos',       popM: 15.4 },
+  { name: 'Найроби',        country: 'Кения',           lat: -1.29,  lon: 36.82,  tz: 'Africa/Nairobi',     popM: 4.4 },
   { name: 'Кейптаун',       country: 'ЮАР',             lat: -33.92, lon: 18.42,  tz: 'Africa/Johannesburg',popM: 4.8 },
-  { name: 'Рио-де-Жанейро', country: 'Бразилия',        lat: -22.91, lon: -43.17, tz: 'America/Sao_Paulo',  popM: 6.7 },
-  { name: 'Нью-Йорк',       country: 'США',             lat: 40.71,  lon: -74.01, tz: 'America/New_York',   popM: 8.8 },
+  { name: 'Дубай',          country: 'ОАЭ',             lat: 25.20,  lon: 55.27,  tz: 'Asia/Dubai',         popM: 3.6 },
+  // Азия
+  { name: 'Дели',           country: 'Индия',           lat: 28.61,  lon: 77.21,  tz: 'Asia/Kolkata',       popM: 32.9 },
+  { name: 'Бангкок',        country: 'Таиланд',         lat: 13.76,  lon: 100.50, tz: 'Asia/Bangkok',       popM: 8.3 },
+  { name: 'Сингапур',       country: 'Сингапур',        lat: 1.35,   lon: 103.82, tz: 'Asia/Singapore',     popM: 6.0 },
+  { name: 'Гонконг',        country: 'Китай',           lat: 22.32,  lon: 114.17, tz: 'Asia/Hong_Kong',     popM: 7.5 },
+  { name: 'Пекин',          country: 'Китай',           lat: 39.90,  lon: 116.40, tz: 'Asia/Shanghai',      popM: 21.9 },
+  { name: 'Сеул',           country: 'Южная Корея',     lat: 37.57,  lon: 126.98, tz: 'Asia/Seoul',         popM: 9.7 },
+  { name: 'Токио',          country: 'Япония',          lat: 35.68,  lon: 139.69, tz: 'Asia/Tokyo',         popM: 13.9 },
+  // Океания и Тихий океан
+  { name: 'Сидней',         country: 'Австралия',       lat: -33.87, lon: 151.21, tz: 'Australia/Sydney',   popM: 5.3 },
+  { name: 'Окленд',         country: 'Новая Зеландия',  lat: -36.85, lon: 174.76, tz: 'Pacific/Auckland',   popM: 1.7 },
+  { name: 'Гонолулу',       country: 'США',             lat: 21.31,  lon: -157.86,tz: 'Pacific/Honolulu',   popM: 1.0 },
+  // Америки
   { name: 'Лос-Анджелес',   country: 'США',             lat: 34.05,  lon: -118.24,tz: 'America/Los_Angeles',popM: 3.9 },
+  { name: 'Мехико',         country: 'Мексика',         lat: 19.43,  lon: -99.13, tz: 'America/Mexico_City',popM: 9.2 },
+  { name: 'Нью-Йорк',       country: 'США',             lat: 40.71,  lon: -74.01, tz: 'America/New_York',   popM: 8.8 },
+  { name: 'Богота',         country: 'Колумбия',        lat: 4.71,   lon: -74.07, tz: 'America/Bogota',     popM: 7.9 },
+  { name: 'Рио-де-Жанейро', country: 'Бразилия',        lat: -22.91, lon: -43.17, tz: 'America/Sao_Paulo',  popM: 6.7 },
+  { name: 'Буэнос-Айрес',   country: 'Аргентина',       lat: -34.60, lon: -58.38, tz: 'America/Argentina/Buenos_Aires', popM: 15.2 },
 ];
 
 const HOME_CITY = CITIES[0];
@@ -75,6 +95,7 @@ function subsolarPoint(date = new Date()) {
 
 const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+const easeInOutSine = t => -(Math.cos(Math.PI * t) - 1) / 2;
 
 function fmtPop(m) { return m.toFixed(1).replace('.', ',').replace(',0', '') + ' млн'; }
 
@@ -189,16 +210,34 @@ function makeSunTexture(size = 256) {
 /* ---------- Твины ---------- */
 
 const tweens = [];
-function addTween(dur, ease, onUpdate, onEnd) {
-  tweens.push({ t0: performance.now(), dur, ease, onUpdate, onEnd });
+function addTween(dur, ease, onUpdate, onEnd, tag = 'fly') {
+  const tw = { t0: performance.now(), dur, ease, onUpdate, onEnd, tag, cancelled: false };
+  tweens.push(tw);
+  return tw;
+}
+function cancelTweens(tag) {
+  tweens.forEach(tw => { if (!tag || tw.tag === tag) tw.cancelled = true; });
 }
 function updateTweens(now) {
   for (let i = tweens.length - 1; i >= 0; i--) {
     const tw = tweens[i];
+    if (tw.cancelled) { tweens.splice(i, 1); continue; }
     let k = Math.min(1, (now - tw.t0) / tw.dur);
     tw.onUpdate(tw.ease(k));
     if (k === 1) { tweens.splice(i, 1); tw.onEnd && tw.onEnd(); }
   }
+}
+
+/** Сферическая интерполяция двух направлениями (unit-векторы) */
+function slerpDir(a, b, t) {
+  const ax = a.clone().normalize();
+  const bx = b.clone().normalize();
+  const omega = ax.angleTo(bx);
+  if (omega < 1e-6) return ax;
+  const so = Math.sin(omega);
+  return ax.multiplyScalar(Math.sin((1 - t) * omega) / so)
+    .add(bx.multiplyScalar(Math.sin(t * omega) / so))
+    .normalize();
 }
 
 /* ---------- Инициализация сцены ---------- */
@@ -612,6 +651,163 @@ function applyToggles() {
 [tgClouds, tgArcs, tgLabels].forEach(t => t.addEventListener('change', applyToggles));
 applyToggles();
 
+/* ---------- Режим «Полёт по маршруту» 🛫 ---------- */
+
+const tgTour = document.getElementById('tg-tour');
+const hud = document.getElementById('tour-hud');
+const tourLegEl = document.getElementById('tour-leg');
+const tourCountEl = document.getElementById('tour-count');
+const tourInfoEl = document.getElementById('tour-info');
+const tourFillEl = document.getElementById('tour-fill');
+
+let tourOn = false;
+let tourFocus = null; // индекс города, к которому летим (подсветка маркера)
+
+// «комета» — светящаяся точка, летящая по дуге под камерой
+const comet = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: dotTexture, color: 0xffd9a0, transparent: true, depthWrite: false,
+}));
+comet.scale.setScalar(0.075);
+comet.visible = false;
+comet.renderOrder = 3;
+scene.add(comet);
+
+// подсвеченная дуга текущего перелёта
+const tourArc = new THREE.Mesh(
+  new THREE.BufferGeometry(),
+  new THREE.MeshBasicMaterial({
+    color: 0xffc98b, transparent: true, opacity: 0.55,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  })
+);
+tourArc.visible = false;
+tourArc.renderOrder = 2;
+scene.add(tourArc);
+
+/** Маршрут: «жадный» ближайший сосед от дома с возвратом домой */
+function buildRoute() {
+  const route = [0];
+  const remaining = new Set(markerGroups.map((_, i) => i).slice(1));
+  let cur = 0;
+  while (remaining.size) {
+    let best = -1, bestD = Infinity;
+    for (const j of remaining) {
+      const d = markerGroups[cur].pos.angleTo(markerGroups[j].pos);
+      if (d < bestD) { bestD = d; best = j; }
+    }
+    route.push(best);
+    remaining.delete(best);
+    cur = best;
+  }
+  route.push(0); // замыкаем кругосветку
+  return route;
+}
+
+function cityInfoLine(c) {
+  return `${c.name} · ${c.country} · 🕐 ${localTime(c.tz)} · 👥 ${fmtPop(c.popM)}`;
+}
+
+/** Один перелёт маршрута: камера летит по дуге, глядя чуть вперёд */
+function runTourLeg(route, leg) {
+  const total = route.length - 1;
+  const aIdx = route[leg], bIdx = route[leg + 1];
+  const A = markerGroups[aIdx].pos.clone().normalize();
+  const B = markerGroups[bIdx].pos.clone().normalize();
+  const omega = A.angleTo(B);
+  const dur = THREE.MathUtils.clamp(1100 + omega * 1000, 1500, 4200);
+  const startR = camera.position.length();
+  const cruise = 1.32;
+  const bump = 0.42 * Math.min(1, omega / (Math.PI * 0.8));
+  const arcAlt = 0.05 + 0.24 * (omega / Math.PI);
+
+  tourFocus = bIdx;
+  tourLegEl.textContent = `${CITIES[aIdx].name} ➜ ${CITIES[bIdx].name}`;
+  tourCountEl.textContent = `${leg + 1}/${total}`;
+  tourInfoEl.textContent = cityInfoLine(CITIES[bIdx]);
+
+  tourArc.geometry.dispose();
+  tourArc.geometry = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3(greatCirclePoints(A, B)), 96, 0.004, 6
+  );
+  tourArc.visible = true;
+  comet.visible = true;
+
+  addTween(dur, easeInOutSine, k => {
+    const dir = slerpDir(A, B, k);
+    const approach = THREE.MathUtils.smoothstep(k, 0, 0.35);
+    const r = startR + (cruise - startR) * approach + bump * Math.sin(Math.PI * k);
+    camera.position.copy(dir).multiplyScalar(r);
+    camera.lookAt(slerpDir(A, B, Math.min(1, k + 0.06)));
+    comet.position.copy(dir).multiplyScalar(1.005 + arcAlt * Math.sin(Math.PI * k));
+    tourFillEl.style.width = (k * 100).toFixed(1) + '%';
+  }, () => {
+    // пауза над городом — показать карточку
+    const c = CITIES[bIdx];
+    tourInfoEl.textContent = cityInfoLine(c);
+    addTween(1600, t => t, () => {
+      camera.lookAt(B); // держим взгляд на городе
+      tourInfoEl.textContent = cityInfoLine(c); // обновляем время
+    }, () => {
+      if (leg + 1 >= total) stopTour(true);
+      else runTourLeg(route, leg + 1);
+    }, 'tour');
+  }, 'tour');
+}
+
+function startTour() {
+  if (tourOn) return;
+  cancelTweens(); // прерываем интро/полёт к городу, если были
+  tourOn = true;
+  flying = true;
+  clearTimeout(idleTimer);
+  controls.enabled = false;
+  controls.autoRotate = false;
+  setHovered(null, 0, 0);
+
+  const route = buildRoute();
+  hud.classList.add('show');
+  tgTour.checked = true;
+  tourFillEl.style.width = '0%';
+  tourFocus = 0;
+
+  // стартовая пауза над домом
+  const homeDirV = markerGroups[0].pos.clone().normalize();
+  const r0 = camera.position.length();
+  tourLegEl.textContent = `Старт: ${HOME}`;
+  tourCountEl.textContent = `1/${route.length - 1}`;
+  tourInfoEl.textContent = cityInfoLine(CITIES[0]);
+  comet.position.copy(homeDirV).multiplyScalar(1.03);
+  comet.visible = true;
+
+  addTween(900, easeOutCubic, k => {
+    camera.position.copy(homeDirV).multiplyScalar(r0 + (1.9 - r0) * k);
+    camera.lookAt(homeDirV);
+  }, () => runTourLeg(route, 0), 'tour');
+}
+
+function stopTour(finished = false) {
+  if (!tourOn) return;
+  tourOn = false;
+  flying = false;
+  tourFocus = null;
+  cancelTweens('tour');
+  tourArc.visible = false;
+  comet.visible = false;
+  hud.classList.remove('show');
+  tgTour.checked = false;
+  controls.enabled = true;
+  if (finished) {
+    const dir = camera.position.clone().normalize();
+    flyToDir(dir, 3.1, 1200, () => scheduleAutoRotate());
+  } else {
+    scheduleAutoRotate();
+  }
+}
+
+tgTour.addEventListener('change', () => { if (tgTour.checked) startTour(); else stopTour(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && tourOn) stopTour(false); });
+renderer.domElement.addEventListener('pointerdown', () => { if (tourOn) stopTour(false); });
+
 /* ---------- Наведение и клики по маркерам ---------- */
 
 const raycaster = new THREE.Raycaster();
@@ -715,11 +911,12 @@ function animate() {
   clouds.rotation.y = t * 0.0045;
 
   // пульсация маркеров
-  markerGroups.forEach(m => {
+  markerGroups.forEach((m, i) => {
     const p = (t * 0.35 + m.ringOffset) % 1;
     m.ring.scale.setScalar(0.02 + 0.065 * p);
     m.ring.material.opacity = (1 - p) * 0.55 * (m.dot.visible ? 1 : 0);
-    if (hovered !== null && CITIES[hovered] === m.city) {
+    const emphasized = (hovered !== null && CITIES[hovered] === m.city) || tourFocus === i;
+    if (emphasized) {
       m.dot.scale.setScalar(m.isHome ? 0.078 : 0.064);
     } else {
       m.dot.scale.setScalar(m.isHome ? 0.06 : 0.048);

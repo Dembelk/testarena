@@ -62,7 +62,7 @@ try {
       visibleLabels: labels.filter(l => parseFloat(l.style.opacity || '0') > 0.3).length,
       firstLabels: labels.slice(0, 3).map(l => l.textContent),
       tooltipExists: !!document.getElementById('tooltip'),
-      toggles: ['tg-clouds', 'tg-arcs', 'tg-labels', 'tg-rotate'].map(id => document.getElementById(id)?.checked),
+      toggles: ['tg-clouds', 'tg-arcs', 'tg-labels', 'tg-rotate', 'tg-tour'].map(id => document.getElementById(id)?.checked),
     };
   });
   console.log('STATE:', JSON.stringify(state, null, 2));

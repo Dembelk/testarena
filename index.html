@@ -42,6 +42,7 @@
     <label class="toggle"><input type="checkbox" id="tg-arcs" checked><span>✈️ Маршруты</span></label>
     <label class="toggle"><input type="checkbox" id="tg-labels" checked><span>📍 Метки</span></label>
     <label class="toggle"><input type="checkbox" id="tg-rotate" checked><span>🔄 Автовращение</span></label>
+    <label class="toggle tour"><input type="checkbox" id="tg-tour"><span>🛫 Полёт по маршруту</span></label>
   </nav>
 
   <!-- Подсказка -->
@@ -55,6 +56,18 @@
 
   <!-- Метки городов (HTML-оверлей) -->
   <div id="labels"></div>
+
+  <!-- HUD режима полёта -->
+  <div id="tour-hud">
+    <div class="tour-top">
+      <span class="tour-badge">🛫 Кругосветный маршрут</span>
+      <span class="tour-count" id="tour-count">1/30</span>
+    </div>
+    <div class="tour-leg" id="tour-leg"></div>
+    <div class="tour-bar"><div id="tour-fill"></div></div>
+    <div class="tour-info" id="tour-info"></div>
+    <div class="tour-exit">Esc или клик — выход</div>
+  </div>
 
   <!-- Всплывающая карточка города -->
   <div id="tooltip">
