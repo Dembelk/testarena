@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Интерактивный глобус 🌍</title>
+  <meta name="description" content="Фотореалистичный интерактивный 3D-глобус: реальный терминатор дня и ночи, ночные огни городов, облака, маршруты и местное время.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./js/vendor/three.module.min.js",
+      "three/addons/": "./js/vendor/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="vignette"></div>
+
+  <!-- Экран загрузки -->
+  <div id="loading">
+    <div class="loader-orbit">
+      <div class="loader-planet"></div>
+      <div class="loader-moon"></div>
+    </div>
+    <div class="loader-text">Загружаем планету…</div>
+    <div class="loader-bar"><div id="loader-fill"></div></div>
+  </div>
+
+  <!-- Шапка -->
+  <header id="header">
+    <h1>🌍 Интерактивный глобус</h1>
+    <p class="subtitle">Терминатор дня и ночи — в реальном времени</p>
+  </header>
+
+  <!-- Панель управления -->
+  <nav id="panel" aria-label="Настройки глобуса">
+    <label class="toggle"><input type="checkbox" id="tg-clouds" checked><span>☁️ Облака</span></label>
+    <label class="toggle"><input type="checkbox" id="tg-arcs" checked><span>✈️ Маршруты</span></label>
+    <label class="toggle"><input type="checkbox" id="tg-points" checked><span>💡 Города мира</span></label>
+    <label class="toggle"><input type="checkbox" id="tg-borders" checked><span>🗺 Границы</span></label>
+    <label class="toggle"><input type="checkbox" id="tg-labels" checked><span>📍 Названия</span></label>
+    <label class="toggle"><input type="checkbox" id="tg-rotate" checked><span>🔄 Автовращение</span></label>
+    <label class="toggle tour"><input type="checkbox" id="tg-tour"><span>🛫 Полёт по маршруту</span></label>
+  </nav>
+
+  <!-- Подсказка -->
+  <footer id="hint">
+    <span>🖱 Перетаскивайте — вращение</span>
+    <span class="sep">·</span>
+    <span>Колесо / щипок — зум</span>
+    <span class="sep">·</span>
+    <span>Клик по метке — перелёт 🛬</span>
+  </footer>
+
+  <!-- Метки городов (HTML-оверлей) -->
+  <div id="labels"></div>
+
+  <!-- HUD режима полёта -->
+  <div id="tour-hud">
+    <div class="tour-top">
+      <span class="tour-badge">🛫 Кругосветный маршрут</span>
+      <span class="tour-count" id="tour-count">1/30</span>
+    </div>
+    <div class="tour-leg" id="tour-leg"></div>
+    <div class="tour-bar"><div id="tour-fill"></div></div>
+    <div class="tour-info" id="tour-info"></div>
+    <div class="tour-exit">Esc или клик — выход</div>
+  </div>
+
+  <!-- Всплывающая карточка города -->
+  <div id="tooltip">
+    <div class="tt-title"><span id="tt-name"></span><span id="tt-country"></span></div>
+    <div class="tt-row">🕐 <b id="tt-time"></b>&nbsp;<span class="muted">местное</span></div>
+    <div class="tt-row">👥 <span id="tt-pop"></span></div>
+  </div>
+
+  <div id="fatal" hidden>
+    <div>😵 Не удалось запустить WebGL — глобусу нужен современный браузер с включённым аппаратным ускорением.</div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

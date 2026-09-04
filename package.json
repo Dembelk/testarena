@@ -1,0 +1,26 @@
+{
+  "name": "interactive-globe",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Интерактивный 3D-глобус Земли на Three.js: реальный терминатор дня и ночи, ночные огни городов, облака, маршруты.",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "build:data": "node scripts/build-data.mjs",
+    "test": "node scripts/smoke.mjs",
+    "test:tour": "node scripts/tour-test.mjs",
+    "test:zoom": "node scripts/zoom-test.mjs"
+  },
+  "dependencies": {
+    "three": "^0.160.0",
+    "three-globe": "^2.45.2"
+  },
+  "devDependencies": {
+    "@sparticuz/chromium": "^149.0.0",
+    "all-the-cities": "^3.1.0",
+    "puppeteer-core": "^25.10.0",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2",
+    "world-countries": "^5.1.0"
+  }
+}

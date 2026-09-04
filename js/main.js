@@ -1,0 +1,1269 @@
+/* ============================================================
+   Интерактивный глобус 🌍
+   Three.js + текстуры NASA (Blue Marble / ночные огни)
+   — реальный терминатор дня и ночи (положение Солнца по UTC)
+   — процедурные облака, атмосферное свечение, звёздное небо
+   — метки городов с местным временем, маршруты из Франкфурта
+   ============================================================ */
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ---------- Данные городов ---------- */
+
+const HOME = 'Франкфурт';
+
+const CITIES = [
+  // Европа
+  { name: 'Франкфурт',      country: 'Германия',        lat: 50.11,  lon: 8.68,   tz: 'Europe/Berlin',      popM: 0.8 },
+  { name: 'Лондон',         country: 'Великобритания',  lat: 51.51,  lon: -0.13,  tz: 'Europe/London',      popM: 8.9 },
+  { name: 'Париж',          country: 'Франция',         lat: 48.86,  lon: 2.35,   tz: 'Europe/Paris',       popM: 2.1 },
+  { name: 'Мадрид',         country: 'Испания',         lat: 40.42,  lon: -3.70,  tz: 'Europe/Madrid',      popM: 3.3 },
+  { name: 'Рим',            country: 'Италия',          lat: 41.89,  lon: 12.51,  tz: 'Europe/Rome',        popM: 2.8 },
+  { name: 'Стокгольм',      country: 'Швеция',          lat: 59.33,  lon: 18.06,  tz: 'Europe/Stockholm',   popM: 1.0 },
+  { name: 'Рейкьявик',      country: 'Исландия',        lat: 64.15,  lon: -21.94, tz: 'Atlantic/Reykjavik', popM: 0.14 },
+  { name: 'Стамбул',        country: 'Турция',          lat: 41.01,  lon: 28.98,  tz: 'Europe/Istanbul',    popM: 15.6 },
+  { name: 'Москва',         country: 'Россия',          lat: 55.76,  lon: 37.62,  tz: 'Europe/Moscow',      popM: 13.1 },
+  // Африка и Ближний Восток
+  { name: 'Каир',           country: 'Египет',          lat: 30.04,  lon: 31.24,  tz: 'Africa/Cairo',       popM: 10.1 },
+  { name: 'Лагос',          country: 'Нигерия',         lat: 6.52,   lon: 3.38,   tz: 'Africa/Lagos',       popM: 15.4 },
+  { name: 'Найроби',        country: 'Кения',           lat: -1.29,  lon: 36.82,  tz: 'Africa/Nairobi',     popM: 4.4 },
+  { name: 'Кейптаун',       country: 'ЮАР',             lat: -33.92, lon: 18.42,  tz: 'Africa/Johannesburg',popM: 4.8 },
+  { name: 'Дубай',          country: 'ОАЭ',             lat: 25.20,  lon: 55.27,  tz: 'Asia/Dubai',         popM: 3.6 },
+  // Азия
+  { name: 'Дели',           country: 'Индия',           lat: 28.61,  lon: 77.21,  tz: 'Asia/Kolkata',       popM: 32.9 },
+  { name: 'Бангкок',        country: 'Таиланд',         lat: 13.76,  lon: 100.50, tz: 'Asia/Bangkok',       popM: 8.3 },
+  { name: 'Сингапур',       country: 'Сингапур',        lat: 1.35,   lon: 103.82, tz: 'Asia/Singapore',     popM: 6.0 },
+  { name: 'Гонконг',        country: 'Китай',           lat: 22.32,  lon: 114.17, tz: 'Asia/Hong_Kong',     popM: 7.5 },
+  { name: 'Пекин',          country: 'Китай',           lat: 39.90,  lon: 116.40, tz: 'Asia/Shanghai',      popM: 21.9 },
+  { name: 'Сеул',           country: 'Южная Корея',     lat: 37.57,  lon: 126.98, tz: 'Asia/Seoul',         popM: 9.7 },
+  { name: 'Токио',          country: 'Япония',          lat: 35.68,  lon: 139.69, tz: 'Asia/Tokyo',         popM: 13.9 },
+  // Океания и Тихий океан
+  { name: 'Сидней',         country: 'Австралия',       lat: -33.87, lon: 151.21, tz: 'Australia/Sydney',   popM: 5.3 },
+  { name: 'Окленд',         country: 'Новая Зеландия',  lat: -36.85, lon: 174.76, tz: 'Pacific/Auckland',   popM: 1.7 },
+  { name: 'Гонолулу',       country: 'США',             lat: 21.31,  lon: -157.86,tz: 'Pacific/Honolulu',   popM: 1.0 },
+  // Америки
+  { name: 'Лос-Анджелес',   country: 'США',             lat: 34.05,  lon: -118.24,tz: 'America/Los_Angeles',popM: 3.9 },
+  { name: 'Мехико',         country: 'Мексика',         lat: 19.43,  lon: -99.13, tz: 'America/Mexico_City',popM: 9.2 },
+  { name: 'Нью-Йорк',       country: 'США',             lat: 40.71,  lon: -74.01, tz: 'America/New_York',   popM: 8.8 },
+  { name: 'Богота',         country: 'Колумбия',        lat: 4.71,   lon: -74.07, tz: 'America/Bogota',     popM: 7.9 },
+  { name: 'Рио-де-Жанейро', country: 'Бразилия',        lat: -22.91, lon: -43.17, tz: 'America/Sao_Paulo',  popM: 6.7 },
+  { name: 'Буэнос-Айрес',   country: 'Аргентина',       lat: -34.60, lon: -58.38, tz: 'America/Argentina/Buenos_Aires', popM: 15.2 },
+];
+
+const HOME_CITY = CITIES[0];
+
+const COLORS = {
+  home: 0xffb347,   // янтарь — дом
+  city: 0x7fd8ff,   // светло-циановый — города
+  arcA: 0xffb347,   // начало дуги
+  arcB: 0x5fb8ff,   // конец дуги
+};
+
+/* ---------- Утилиты ---------- */
+
+const DEG = Math.PI / 180;
+
+/** Широта/долгота → вектор на сфере (совместимо с UV SphereGeometry + равнопромежуточная текстура) */
+function latLonToVec3(lat, lon, r) {
+  const phi = (90 - lat) * DEG;
+  const theta = (lon + 180) * DEG;
+  return new THREE.Vector3(
+    -r * Math.sin(phi) * Math.cos(theta),
+     r * Math.cos(phi),
+     r * Math.sin(phi) * Math.sin(theta)
+  );
+}
+
+/** Точка, над которой Солнце в зените, прямо сейчас (для реального терминатора) */
+function subsolarPoint(date = new Date()) {
+  const jd = date.getTime() / 86400000 + 2440587.5; // юлианский день
+  const n = jd - 2451545.0;                          // дней с J2000
+  let L = (280.460 + 0.9856474 * n) % 360;
+  if (L < 0) L += 360;
+  const g = ((357.528 + 0.9856003 * n) % 360) * DEG;
+  const lambda = (L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * DEG;
+  const eps = (23.439 - 0.0000004 * n) * DEG;
+  const dec = Math.asin(Math.sin(eps) * Math.sin(lambda));
+  const ra = Math.atan2(Math.cos(eps) * Math.sin(lambda), Math.cos(lambda));
+  let gmst = (18.697374558 + 24.06570982441908 * n) % 24;
+  if (gmst < 0) gmst += 24;
+  let lon = ra / DEG - gmst * 15;
+  lon = ((lon % 360) + 540) % 360 - 180;
+  return { lat: dec / DEG, lon };
+}
+
+const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+const easeInOutSine = t => -(Math.cos(Math.PI * t) - 1) / 2;
+
+function fmtPop(m) { return m.toFixed(1).replace('.', ',').replace(',0', '') + ' млн'; }
+
+function localTime(tz) {
+  try {
+    return new Intl.DateTimeFormat('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit' }).format(new Date());
+  } catch { return '—'; }
+}
+
+/* ---------- Процедурные текстуры (canvas) ---------- */
+
+/** Псевдослучайный хеш решётки → [0,1) */
+function latticeHash(x, y, seed) {
+  let n = (x * 374761393 + y * 668265263 + seed * 1442695041) | 0;
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  n = (n ^ (n >>> 16)) >>> 0;
+  return n / 4294967296;
+}
+
+/** Value-noise с периодом px по X (бесшовность по долготе) */
+function tileableNoise(x, y, px, seed) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x - xi, yf = y - yi;
+  const u = xf * xf * xf * (xf * (xf * 6 - 15) + 10);
+  const v = yf * yf * yf * (yf * (yf * 6 - 15) + 10);
+  const x0 = ((xi % px) + px) % px, x1 = (x0 + 1) % px;
+  const a = latticeHash(x0, yi, seed),     b = latticeHash(x1, yi, seed);
+  const c = latticeHash(x0, yi + 1, seed), d = latticeHash(x1, yi + 1, seed);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+
+function fbm(x, y, px, seed, octaves = 5) {
+  let sum = 0, amp = 0.5, tot = 0, freq = 1;
+  for (let o = 0; o < octaves; o++) {
+    sum += amp * tileableNoise(x * freq, y * freq, px * freq, seed + o * 101);
+    tot += amp; amp *= 0.55; freq *= 2;
+  }
+  return sum / tot;
+}
+
+/** Карта облаков: белый цвет + альфа = покрытие. Бесшовно по долготе. */
+function makeCloudTexture(w = 1024, h = 512) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(w, h);
+  const BASE = 6; // базовая частота по X
+  for (let j = 0; j < h; j++) {
+    const v = j / h;
+    const polar = Math.pow(Math.sin(Math.PI * v), 0.35); // приглушить у полюсов
+    for (let i = 0; i < w; i++) {
+      const u = i / w;
+      const f = fbm(u * BASE, v * BASE * 0.55, BASE, 42);
+      let cov = Math.min(1, Math.max(0, (f - 0.44) / 0.30));
+      cov = cov * cov * (3 - 2 * cov) * polar;
+      const alpha = Math.round(cov * 255 * 0.85);
+      const k = (j * w + i) * 4;
+      img.data[k] = 255; img.data[k + 1] = 255; img.data[k + 2] = 255;
+      img.data[k + 3] = alpha;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  return tex;
+}
+
+/** Точка-маркер: ядро + мягкое свечение (белая — тонировка через материал) */
+function makeDotTexture(size = 128) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+  g.addColorStop(0.0,  'rgba(255,255,255,1)');
+  g.addColorStop(0.14, 'rgba(255,255,255,1)');
+  g.addColorStop(0.2,  'rgba(255,255,255,0.55)');
+  g.addColorStop(0.5,  'rgba(255,255,255,0.12)');
+  g.addColorStop(1.0,  'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(c);
+}
+
+/** Кольцо для пульсации */
+function makeRingTexture(size = 128) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  ctx.lineWidth = size * 0.055;
+  ctx.beginPath();
+  ctx.arc(size/2, size/2, size * 0.36, 0, Math.PI * 2);
+  ctx.stroke();
+  return new THREE.CanvasTexture(c);
+}
+
+/** Свечение Солнца */
+function makeSunTexture(size = 256) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+  g.addColorStop(0.0, 'rgba(255,255,245,1)');
+  g.addColorStop(0.08,'rgba(255,240,200,0.9)');
+  g.addColorStop(0.25,'rgba(255,210,130,0.35)');
+  g.addColorStop(1.0, 'rgba(255,190,100,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(c);
+}
+
+/* ---------- Твины ---------- */
+
+const tweens = [];
+function addTween(dur, ease, onUpdate, onEnd, tag = 'fly') {
+  const tw = { t0: performance.now(), dur, ease, onUpdate, onEnd, tag, cancelled: false };
+  tweens.push(tw);
+  return tw;
+}
+function cancelTweens(tag) {
+  tweens.forEach(tw => { if (!tag || tw.tag === tag) tw.cancelled = true; });
+}
+function updateTweens(now) {
+  for (let i = tweens.length - 1; i >= 0; i--) {
+    const tw = tweens[i];
+    if (tw.cancelled) { tweens.splice(i, 1); continue; }
+    let k = Math.min(1, (now - tw.t0) / tw.dur);
+    tw.onUpdate(tw.ease(k));
+    if (k === 1) { tweens.splice(i, 1); tw.onEnd && tw.onEnd(); }
+  }
+}
+
+/** Сферическая интерполяция двух направлениями (unit-векторы) */
+function slerpDir(a, b, t) {
+  const ax = a.clone().normalize();
+  const bx = b.clone().normalize();
+  const omega = ax.angleTo(bx);
+  if (omega < 1e-6) return ax;
+  const so = Math.sin(omega);
+  return ax.multiplyScalar(Math.sin((1 - t) * omega) / so)
+    .add(bx.multiplyScalar(Math.sin(t * omega) / so))
+    .normalize();
+}
+
+/* ---------- Инициализация сцены ---------- */
+
+const app = document.getElementById('app');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+} catch (e) {
+  document.getElementById('fatal').hidden = false;
+  document.getElementById('loading').classList.add('done');
+  throw e;
+}
+
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.domElement.style.cursor = 'grab';
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.05, 400);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.rotateSpeed = 0.55;
+controls.enablePan = false;
+controls.minDistance = 1.35;
+controls.maxDistance = 10;
+controls.autoRotateSpeed = 0.4;
+controls.enabled = false; // включим после интро
+
+/* Стартовая позиция камеры — «над Атлантикой», интро приведёт к Европе */
+const introFrom = latLonToVec3(16, -35, 7.6);
+camera.position.copy(introFrom);
+camera.lookAt(0, 0, 0);
+
+/* ---------- Загрузка текстур ---------- */
+
+const loadingEl = document.getElementById('loading');
+const loaderFill = document.getElementById('loader-fill');
+const manager = new THREE.LoadingManager();
+manager.onProgress = (_u, done, total) => {
+  loaderFill.style.width = Math.round((done / total) * 100) + '%';
+};
+
+const texLoader = new THREE.TextureLoader(manager);
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+
+function loadTex(url, aniso = true) {
+  const t = texLoader.load(url);
+  if (aniso) t.anisotropy = maxAniso;
+  return t;
+}
+
+const dayTex   = loadTex('assets/earth-day.jpg');
+const nightTex = loadTex('assets/earth-night.jpg');
+const waterTex = loadTex('assets/earth-water.png', false);
+const starTex  = loadTex('assets/night-sky.png');
+
+starTex.mapping = THREE.EquirectangularReflectionMapping;
+scene.background = starTex;
+
+/* ---------- Солнце ---------- */
+
+const sunDir = new THREE.Vector3(1, 0, 0);
+function updateSun() {
+  const ssp = subsolarPoint();
+  sunDir.copy(latLonToVec3(ssp.lat, ssp.lon, 1)).normalize();
+  sunSprite.position.copy(sunDir).multiplyScalar(120);
+}
+const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: makeSunTexture(), transparent: true, depthWrite: false, depthTest: true,
+}));
+sunSprite.scale.setScalar(22);
+scene.add(sunSprite);
+updateSun();
+
+/* ---------- Земля ---------- */
+
+const earthUniforms = {
+  dayMap:   { value: dayTex },
+  nightMap: { value: nightTex },
+  waterMask:{ value: waterTex },
+  sunDir:   { value: sunDir },
+};
+
+const earthMat = new THREE.ShaderMaterial({
+  uniforms: earthUniforms,
+  vertexShader: /* glsl */`
+    varying vec2 vUv;
+    varying vec3 vNormalW;
+    varying vec3 vPosW;
+    void main() {
+      vUv = uv;
+      vNormalW = normalize(mat3(modelMatrix) * normal);
+      vec4 wp = modelMatrix * vec4(position, 1.0);
+      vPosW = wp.xyz;
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }
+  `,
+  fragmentShader: /* glsl */`
+    uniform sampler2D dayMap;
+    uniform sampler2D nightMap;
+    uniform sampler2D waterMask;
+    uniform vec3 sunDir;
+    varying vec2 vUv;
+    varying vec3 vNormalW;
+    varying vec3 vPosW;
+
+    void main() {
+      vec3 n = normalize(vNormalW);
+      vec3 s = normalize(sunDir);
+      float sunCos = dot(n, s);
+
+      // плавный терминатор день/ночь
+      float dayMix = smoothstep(-0.14, 0.12, sunCos);
+
+      vec3 dayCol   = texture2D(dayMap, vUv).rgb;
+      vec3 nightCol = texture2D(nightMap, vUv).rgb;
+
+      // ночные огни городов: чуть ярче и теплее
+      nightCol *= vec3(1.30, 1.05, 0.78) * 1.45;
+
+      // дневная сторона: ambient + солнце
+      float diff = clamp(sunCos, 0.0, 1.0);
+      vec3 dayLit = dayCol * (0.16 + 1.08 * pow(diff, 0.8));
+
+      // солнечный блик на океанах
+      float water = texture2D(waterMask, vUv).r;
+      vec3 viewDir = normalize(cameraPosition - vPosW);
+      vec3 h = normalize(viewDir + s);
+      float spec = pow(clamp(dot(n, h), 0.0, 1.0), 48.0) * water * diff;
+      dayLit += spec * vec3(1.0, 0.85, 0.6) * 0.6;
+
+      vec3 color = mix(nightCol, dayLit, dayMix);
+
+      // тёплая полоса сумерек вдоль терминатора
+      float twi = exp(-pow(sunCos / 0.09, 2.0));
+      color += vec3(0.95, 0.35, 0.12) * twi * 0.16;
+
+      // голубая дымка у лимба (внутренняя атмосфера)
+      float fres = pow(1.0 - clamp(dot(viewDir, n), 0.0, 1.0), 2.6);
+      color += vec3(0.25, 0.5, 1.0) * fres * (0.10 + 0.5 * dayMix);
+
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `,
+});
+
+const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 160, 120), earthMat);
+earth.renderOrder = 0;
+scene.add(earth);
+
+/* ---------- Облака ---------- */
+
+const cloudUniforms = {
+  map: { value: makeCloudTexture() },
+  sunDir: { value: sunDir },
+};
+
+const cloudsMat = new THREE.ShaderMaterial({
+  uniforms: cloudUniforms,
+  transparent: true,
+  depthWrite: false,
+  vertexShader: /* glsl */`
+    varying vec2 vUv;
+    varying vec3 vNormalW;
+    void main() {
+      vUv = uv;
+      vNormalW = normalize(mat3(modelMatrix) * normal);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: /* glsl */`
+    uniform sampler2D map;
+    uniform vec3 sunDir;
+    varying vec2 vUv;
+    varying vec3 vNormalW;
+    void main() {
+      vec3 n = normalize(vNormalW);
+      float sunCos = dot(n, normalize(sunDir));
+      float lit = clamp(sunCos, 0.0, 1.0);
+      float dayMix = smoothstep(-0.12, 0.12, sunCos);
+
+      float cover = texture2D(map, vUv).a;
+      float alpha = cover * (0.14 + 0.6 * dayMix);
+
+      vec3 col = vec3(0.62, 0.70, 0.80) * (0.22 + 1.05 * pow(lit, 0.9));
+      // розоватый край облаков у терминатора
+      col += vec3(0.5, 0.22, 0.08) * exp(-pow(sunCos / 0.1, 2.0)) * 0.5;
+
+      gl_FragColor = vec4(col, alpha);
+    }
+  `,
+});
+
+const clouds = new THREE.Mesh(new THREE.SphereGeometry(1.018, 120, 90), cloudsMat);
+clouds.renderOrder = 3;
+scene.add(clouds);
+
+/* ---------- Атмосфера (внешнее свечение) ---------- */
+
+const atmosphere = new THREE.Mesh(
+  new THREE.SphereGeometry(1.16, 96, 64),
+  new THREE.ShaderMaterial({
+    uniforms: { sunDir: { value: sunDir } },
+    side: THREE.BackSide,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    vertexShader: /* glsl */`
+      varying vec3 vNormalV;
+      varying vec3 vNormalW;
+      void main() {
+        vNormalV = normalize(normalMatrix * normal);
+        vNormalW = normalize(mat3(modelMatrix) * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform vec3 sunDir;
+      varying vec3 vNormalV;
+      varying vec3 vNormalW;
+      void main() {
+        float intensity = pow(clamp(0.62 - dot(vNormalV, vec3(0.0, 0.0, 1.0)), 0.0, 1.0), 5.0);
+        float sunlit = 0.3 + 0.7 * smoothstep(-0.4, 0.4, dot(normalize(vNormalW), normalize(sunDir)));
+        vec3 col = mix(vec3(0.12, 0.3, 0.85), vec3(0.35, 0.6, 1.0), intensity);
+        gl_FragColor = vec4(col, 1.0) * intensity * sunlit * 1.35;
+      }
+    `,
+  })
+);
+atmosphere.renderOrder = 6;
+scene.add(atmosphere);
+
+/* ---------- Маркеры городов + HTML-метки ---------- */
+
+const dotTexture = makeDotTexture();
+const ringTexture = makeRingTexture();
+
+const labelsEl = document.getElementById('labels');
+const markerGroups = CITIES.map((city, i) => {
+  const isHome = city.name === HOME;
+  const pos = latLonToVec3(city.lat, city.lon, 1.03);
+
+  const dot = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: dotTexture, color: isHome ? COLORS.home : COLORS.city,
+    transparent: true, depthWrite: false, depthTest: true,
+  }));
+  dot.scale.setScalar(isHome ? 0.06 : 0.048);
+  dot.position.copy(pos);
+  dot.renderOrder = 5;
+  dot.userData.cityIndex = i;
+  scene.add(dot);
+
+  const ring = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: ringTexture, color: isHome ? COLORS.home : COLORS.city,
+    transparent: true, depthWrite: false, depthTest: true, opacity: 0,
+  }));
+  ring.position.copy(pos);
+  ring.renderOrder = 5;
+  scene.add(ring);
+
+  return { city, isHome, pos, dot, ring, ringOffset: i * 0.37 };
+});
+
+/* ---------- МИР: 122 тыс. городов, все страны, границы ---------- */
+
+const world = {
+  N: 0, latArr: null, lonArr: null, popArr: null, nameOff: null, names: '',
+  countries: [], countryByCC: new Map(), countryVecs: [], bordersSegments: 0,
+};
+
+let pointsCloud = null;
+let bordersLines = null;
+
+const pointsUniforms = {
+  uCamDist: { value: 3.1 },
+  uScale:   { value: 1000 },
+  uSunDir:  { value: sunDir },
+};
+
+/** Загрузка данных с учётом прогресс-бара (LoadingManager) */
+function trackFetch(name, url, process) {
+  manager.itemStart(name);
+  return fetch(url)
+    .then(r => { if (!r.ok) throw new Error(url + ' → HTTP ' + r.status); return r.arrayBuffer(); })
+    .then(buf => process(buf))
+    .catch(err => { console.warn('Данные не загрузились:', err.message); return null; })
+    .finally(() => manager.itemEnd(name));
+}
+
+trackFetch('cities.bin', 'data/cities.bin', buf => {
+  const N = new DataView(buf).getUint32(0, true);
+  world.N = N;
+  world.latArr = new Float32Array(buf, 4, N);
+  world.lonArr = new Float32Array(buf, 4 + N * 4, N);
+  world.popArr = new Float32Array(buf, 4 + N * 8, N);
+  world.nameOff = new Uint32Array(buf, 4 + N * 12, N);
+  world.namesBytes = new Uint8Array(buf, 4 + N * 16);
+
+  // геометрия облака точек (все города разом)
+  const positions = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const v = latLonToVec3(world.latArr[i], world.lonArr[i], 1.004);
+    positions[i * 3] = v.x; positions[i * 3 + 1] = v.y; positions[i * 3 + 2] = v.z;
+  }
+  world.positions = positions;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('aPop', new THREE.BufferAttribute(world.popArr, 1));
+
+  const mat = new THREE.ShaderMaterial({
+    uniforms: pointsUniforms,
+    transparent: true,
+    depthWrite: false,
+    vertexShader: /* glsl */`
+      attribute float aPop;
+      uniform float uCamDist;
+      uniform float uScale;
+      uniform vec3 uSunDir;
+      varying float vAlpha;
+      varying float vNight;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        float z = clamp((uCamDist - 1.35) / 8.65, 0.0, 1.0);
+        float thr = 2000.0 + (3e6 - 2000.0) * pow(z, 1.15); // LOD по зуму
+        vAlpha = smoothstep(thr, thr * 1.9, aPop);
+        float sW = mix(0.006, 0.032, clamp(pow(aPop / 2.4e7, 0.3), 0.0, 1.0));
+        float px = sW * uScale / max(0.05, -mv.z);
+        gl_PointSize = min(px, 14.0);
+        vNight = 1.0 - smoothstep(-0.12, 0.12, dot(normalize(position), uSunDir));
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */`
+      varying float vAlpha;
+      varying float vNight;
+      void main() {
+        float d = length(gl_PointCoord - 0.5);
+        float a = smoothstep(0.5, 0.16, d) * vAlpha;
+        if (a < 0.02) discard;
+        vec3 col = mix(vec3(0.50, 0.85, 1.0), vec3(1.0, 0.82, 0.5), vNight * 0.85);
+        gl_FragColor = vec4(col, a * 0.9);
+      }
+    `,
+  });
+  pointsCloud = new THREE.Points(geo, mat);
+  pointsCloud.renderOrder = 2;
+  scene.add(pointsCloud);
+  if (typeof applyToggles === 'function') applyToggles();
+  return N;
+});
+
+trackFetch('countries.json', 'data/countries.json', buf => {
+  world.countries = JSON.parse(new TextDecoder().decode(buf));
+  world.countryByCC = new Map(world.countries.map(c => [c.cc, c]));
+  world.countryVecs = world.countries.map(c => latLonToVec3(c.lat, c.lon, 1));
+  return world.countries.length;
+});
+
+trackFetch('cc-table.json', 'data/cc-table.json', buf => {
+  world.ccTable = JSON.parse(new TextDecoder().decode(buf));
+  return world.ccTable.length;
+});
+
+trackFetch('city-cc.bin', 'data/city-cc.bin', buf => {
+  if (buf.byteLength !== world.N) throw new Error('city-cc.bin размер не совпал');
+  world.cityCC = new Uint8Array(buf, 0, world.N);
+  return world.N;
+});
+
+trackFetch('borders.json', 'data/borders.json', buf => {
+  const lines = JSON.parse(new TextDecoder().decode(buf));
+  const verts = [];
+  const R = 1.0015;
+  let segments = 0;
+  for (const poly of lines) {
+    for (let i = 0; i < poly.length - 1; i++) {
+      const a = latLonToVec3(poly[i][1], poly[i][0], R);
+      const b = latLonToVec3(poly[i + 1][1], poly[i + 1][0], R);
+      verts.push(a.x, a.y, a.z, b.x, b.y, b.z);
+      segments++;
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  bordersLines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+    color: 0x8fc6ff, transparent: true, opacity: 0.22, depthWrite: false,
+  }));
+  bordersLines.renderOrder = 1;
+  scene.add(bordersLines);
+  world.bordersSegments = segments;
+  if (typeof applyToggles === 'function') applyToggles();
+  return segments;
+});
+
+function refreshPointsScale() {
+  // мировой размер → пиксели: (H/2)/tan(fov/2); canvas.height уже в device-пикселях
+  pointsUniforms.uScale.value = renderer.domElement.height * 0.5 / Math.tan(camera.fov * DEG * 0.5);
+}
+refreshPointsScale();
+
+const _td = new TextDecoder('utf-8');
+function cityName(i) {
+  // nameOff — БАЙТОВЫЕ смещения: режем байты, потом декодируем
+  const a = world.nameOff[i];
+  const b = i + 1 < world.N ? world.nameOff[i + 1] : world.namesBytes.length;
+  return _td.decode(world.namesBytes.subarray(a, b));
+}
+
+function fmtPopFull(p) {
+  return p >= 1e6
+    ? (p / 1e6).toFixed(1).replace('.', ',').replace(',0', '') + ' млн'
+    : Math.round(p).toLocaleString('ru-RU');
+}
+
+/** Приблизительное солнечное время по долготе */
+function solarTime(lon) {
+  const now = new Date();
+  let m = Math.round(now.getUTCHours() * 60 + now.getUTCMinutes() + lon * 4);
+  m = ((m % 1440) + 1440) % 1440;
+  return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+}
+
+/* ---------- Пул динамических меток (страны + города мира + избранные) ---------- */
+
+const POOL_SIZE = 46;
+const labelPool = [];
+for (let i = 0; i < POOL_SIZE; i++) {
+  const el = document.createElement('div');
+  el.className = 'glabel';
+  el.style.opacity = '0';
+  labelsEl.appendChild(el);
+  labelPool.push(el);
+}
+const activeLabels = [];
+
+const _proj = new THREE.Vector3();
+const _v3 = new THREE.Vector3();
+
+function selectLabels() {
+  activeLabels.length = 0;
+  const camDist = camera.position.length();
+  const camDir = _v3.copy(camera.position).normalize();
+  const horizon = 1 / camDist;
+  const W = window.innerWidth, H = window.innerHeight;
+  const placed = [];
+
+  const tryPlace = (vec, sep) => {
+    _proj.copy(vec).project(camera);
+    if (_proj.z > 1) return false;
+    const x = (_proj.x * 0.5 + 0.5) * W;
+    const y = (-_proj.y * 0.5 + 0.5) * H;
+    if (x < -60 || x > W + 60 || y < -60 || y > H + 60) return false;
+    for (const p of placed) {
+      const dx = p.x - x, dy = p.y - y;
+      const need = (p.sep + sep) * 0.5;
+      if (dx * dx + dy * dy < need * need) return false;
+    }
+    placed.push({ x, y, sep });
+    return true;
+  };
+
+  const push = (kind, lat, lon, alpha, text) => {
+    if (activeLabels.length >= POOL_SIZE) return;
+    const el = labelPool[activeLabels.length];
+    el.className = kind;
+    el.textContent = text;
+    activeLabels.push({ el, kind, lat, lon, alpha });
+  };
+
+  // 1) Названия стран — при далёком зуме
+  if (tgLabels.checked && world.countries.length && camDist > 3.05) {
+    const cAlpha = THREE.MathUtils.smoothstep(camDist, 3.05, 3.7);
+    let count = 0;
+    for (let i = 0; i < world.countryVecs.length && count < 10; i++) {
+      const v = world.countryVecs[i];
+      if (v.dot(camDir) < horizon) continue;
+      if (tryPlace(v, 110)) {
+        const c = world.countries[i];
+        push('glabel country', c.lat, c.lon, cAlpha, c.flag + ' ' + c.ru);
+        count++;
+      }
+    }
+  }
+
+  // 2) Избранные 30 городов — всегда
+  if (tgLabels.checked) {
+    for (const m of markerGroups) {
+      if (!m.dot.visible) continue;
+      const facing = m.pos.dot(camDir) / m.pos.length();
+      const fade = THREE.MathUtils.smoothstep(facing, horizon, horizon + 0.18);
+      if (fade <= 0.02) continue;
+      if (tryPlace(m.pos, 26)) {
+        push('glabel city' + (m.isHome ? ' home' : ''), m.city.lat, m.city.lon, fade, m.city.name);
+      }
+    }
+  }
+
+  // 3) Города мира — по населению, порог падает с зумом
+  if (tgLabels.checked && world.N) {
+    const z = THREE.MathUtils.clamp((camDist - 1.35) / 8.65, 0, 1);
+    const labelThr = 2e5 + (8e6 - 2e5) * Math.pow(z, 1.05);
+    let count = 0;
+    const px = world.positions;
+    for (let i = 0; i < world.N && world.popArr[i] >= labelThr && count < 22; i++) {
+      const o = i * 3;
+      const facing = px[o] * camDir.x + px[o + 1] * camDir.y + px[o + 2] * camDir.z;
+      if (facing < horizon + 0.02) continue;
+      _proj.set(px[o], px[o + 1], px[o + 2]);
+      if (tryPlace(_proj, 34)) {
+        push('glabel minor', world.latArr[i], world.lonArr[i], 0.85, cityName(i));
+        count++;
+      }
+    }
+  }
+}
+
+function updateLabelPool() {
+  if (!tgLabels.checked) { labelPool.forEach(el => el.style.opacity = '0'); return; }
+  const camDist = camera.position.length();
+  const camDir = _v3.copy(camera.position).normalize();
+  const horizon = 1 / camDist;
+  for (let i = 0; i < labelPool.length; i++) {
+    const a = activeLabels[i];
+    const el = labelPool[i];
+    if (!a) { if (el.style.opacity !== '0') el.style.opacity = '0'; continue; }
+    const r = a.kind.includes('country') ? 1.0 : 1.004;
+    const v = latLonToVec3(a.lat, a.lon, r);
+    const facing = v.dot(camDir);
+    const fade = THREE.MathUtils.smoothstep(facing, horizon, horizon + 0.18);
+    v.project(camera);
+    const x = (v.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-v.y * 0.5 + 0.5) * window.innerHeight;
+    const offset = a.kind.includes('country') ? 0 : 12;
+    el.style.transform = `translate(-50%, calc(-100% - ${offset}px)) translate(${x}px, ${y}px)`;
+    el.style.opacity = (a.alpha * fade).toFixed(2);
+  }
+}
+
+// данные и счётчики для тестов
+window.__GLOBE__ = world;
+
+/* ---------- Маршруты (дуги) из дома ---------- */
+
+function greatCirclePoints(a, b, segments = 129) {
+  const start = a.clone().normalize();
+  const end = b.clone().normalize();
+  const omega = start.angleTo(end);
+  const sinO = Math.sin(omega);
+  const alt = 0.05 + 0.24 * (omega / Math.PI);
+  const pts = [];
+  for (let i = 0; i < segments; i++) {
+    const t = i / (segments - 1);
+    const v = (omega === 0)
+      ? start.clone()
+      : start.clone().multiplyScalar(Math.sin((1 - t) * omega) / sinO)
+          .add(end.clone().multiplyScalar(Math.sin(t * omega) / sinO));
+    v.normalize().multiplyScalar(1.005 + alt * Math.sin(Math.PI * t));
+    pts.push(v);
+  }
+  return pts;
+}
+
+const arcsGroup = new THREE.Group();
+scene.add(arcsGroup);
+
+const arcMats = [];
+const homePos = latLonToVec3(HOME_CITY.lat, HOME_CITY.lon, 1);
+markerGroups.forEach(({ city, isHome, pos }) => {
+  if (isHome) return;
+  const pts = greatCirclePoints(homePos, pos);
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const geo = new THREE.TubeGeometry(curve, 128, 0.0024, 6);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:   { value: 0 },
+      uOffset: { value: Math.random() },
+      uSpeed:  { value: 0.10 + Math.random() * 0.08 },
+      uColorA: { value: new THREE.Color(COLORS.arcA) },
+      uColorB: { value: new THREE.Color(COLORS.arcB) },
+    },
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    vertexShader: /* glsl */`
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform float uTime;
+      uniform float uOffset;
+      uniform float uSpeed;
+      uniform vec3 uColorA;
+      uniform vec3 uColorB;
+      varying vec2 vUv;
+      void main() {
+        float t = vUv.x;
+        float head = fract(uTime * uSpeed + uOffset);
+        float d = fract(head - t);           // «хвост кометы» за головой импульса
+        float pulse = exp(-d * 16.0);
+        float ends = smoothstep(0.0, 0.05, t) * smoothstep(1.0, 0.95, t);
+        float alpha = (0.18 + pulse * 1.0) * ends;
+        vec3 col = mix(uColorA, uColorB, t);
+        gl_FragColor = vec4(col, alpha);
+      }
+    `,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.renderOrder = 4;
+  arcsGroup.add(mesh);
+  arcMats.push(mat);
+});
+
+/* ---------- Полёт камеры к городу ---------- */
+
+let flying = false;
+function flyToDir(targetDir, dist, dur = 1500, onEnd) {
+  const startPos = camera.position.clone();
+  const startDist = startPos.length();
+  const qa = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), startPos.normalize());
+  const qb = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), targetDir.clone().normalize());
+  flying = true;
+  controls.enabled = false;
+  controls.autoRotate = false;
+  addTween(dur, easeInOutCubic, k => {
+    const q = qa.clone().slerp(qb, k);
+    const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+    camera.position.copy(dir.multiplyScalar(startDist + (dist - startDist) * k));
+    camera.lookAt(0, 0, 0);
+  }, () => {
+    flying = false;
+    controls.enabled = true;
+    onEnd && onEnd();
+  });
+}
+
+function flyToCity(city) {
+  const dir = latLonToVec3(city.lat, city.lon, 1).normalize();
+  const dist = THREE.MathUtils.clamp(camera.position.length(), 2.0, 2.6);
+  flyToDir(dir, dist, 1500, () => { scheduleAutoRotate(); });
+}
+
+/* ---------- Автовращение с паузой при взаимодействии ---------- */
+
+const tgRotate = document.getElementById('tg-rotate');
+let idleTimer = null;
+
+function scheduleAutoRotate() {
+  clearTimeout(idleTimer);
+  controls.autoRotate = false;
+  idleTimer = setTimeout(() => { controls.autoRotate = tgRotate.checked; }, 5000);
+}
+
+controls.addEventListener('start', () => {
+  clearTimeout(idleTimer);
+  controls.autoRotate = false;
+});
+controls.addEventListener('end', scheduleAutoRotate);
+
+tgRotate.addEventListener('change', () => {
+  clearTimeout(idleTimer);
+  controls.autoRotate = tgRotate.checked;
+});
+
+/* ---------- Переключатели ---------- */
+
+const tgClouds = document.getElementById('tg-clouds');
+const tgArcs = document.getElementById('tg-arcs');
+const tgLabels = document.getElementById('tg-labels');
+const tgPoints = document.getElementById('tg-points');
+const tgBorders = document.getElementById('tg-borders');
+
+function applyToggles() {
+  clouds.visible = tgClouds.checked;
+  arcsGroup.visible = tgArcs.checked;
+  if (pointsCloud) pointsCloud.visible = tgPoints.checked;
+  if (bordersLines) bordersLines.visible = tgBorders.checked;
+  const showLabels = tgLabels.checked;
+  markerGroups.forEach(m => { m.dot.visible = showLabels; m.ring.visible = showLabels; });
+}
+[tgClouds, tgArcs, tgLabels, tgPoints, tgBorders].forEach(t => t.addEventListener('change', applyToggles));
+applyToggles();
+
+/* ---------- Режим «Полёт по маршруту» 🛫 ---------- */
+
+const tgTour = document.getElementById('tg-tour');
+const hud = document.getElementById('tour-hud');
+const tourLegEl = document.getElementById('tour-leg');
+const tourCountEl = document.getElementById('tour-count');
+const tourInfoEl = document.getElementById('tour-info');
+const tourFillEl = document.getElementById('tour-fill');
+
+let tourOn = false;
+let tourFocus = null; // индекс города, к которому летим (подсветка маркера)
+
+// «комета» — светящаяся точка, летящая по дуге под камерой
+const comet = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: dotTexture, color: 0xffd9a0, transparent: true, depthWrite: false,
+}));
+comet.scale.setScalar(0.075);
+comet.visible = false;
+comet.renderOrder = 5;
+scene.add(comet);
+
+// подсвеченная дуга текущего перелёта
+const tourArc = new THREE.Mesh(
+  new THREE.BufferGeometry(),
+  new THREE.MeshBasicMaterial({
+    color: 0xffc98b, transparent: true, opacity: 0.55,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  })
+);
+tourArc.visible = false;
+tourArc.renderOrder = 4;
+scene.add(tourArc);
+
+/** Маршрут: «жадный» ближайший сосед от дома с возвратом домой */
+function buildRoute() {
+  const route = [0];
+  const remaining = new Set(markerGroups.map((_, i) => i).slice(1));
+  let cur = 0;
+  while (remaining.size) {
+    let best = -1, bestD = Infinity;
+    for (const j of remaining) {
+      const d = markerGroups[cur].pos.angleTo(markerGroups[j].pos);
+      if (d < bestD) { bestD = d; best = j; }
+    }
+    route.push(best);
+    remaining.delete(best);
+    cur = best;
+  }
+  route.push(0); // замыкаем кругосветку
+  return route;
+}
+
+function cityInfoLine(c) {
+  return `${c.name} · ${c.country} · 🕐 ${localTime(c.tz)} · 👥 ${fmtPop(c.popM)}`;
+}
+
+/** Один перелёт маршрута: камера летит по дуге, глядя чуть вперёд */
+function runTourLeg(route, leg) {
+  const total = route.length - 1;
+  const aIdx = route[leg], bIdx = route[leg + 1];
+  const A = markerGroups[aIdx].pos.clone().normalize();
+  const B = markerGroups[bIdx].pos.clone().normalize();
+  const omega = A.angleTo(B);
+  const dur = THREE.MathUtils.clamp(1100 + omega * 1000, 1500, 4200);
+  const startR = camera.position.length();
+  const cruise = 1.32;
+  const bump = 0.42 * Math.min(1, omega / (Math.PI * 0.8));
+  const arcAlt = 0.05 + 0.24 * (omega / Math.PI);
+
+  tourFocus = bIdx;
+  tourLegEl.textContent = `${CITIES[aIdx].name} ➜ ${CITIES[bIdx].name}`;
+  tourCountEl.textContent = `${leg + 1}/${total}`;
+  tourInfoEl.textContent = cityInfoLine(CITIES[bIdx]);
+
+  tourArc.geometry.dispose();
+  tourArc.geometry = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3(greatCirclePoints(A, B)), 96, 0.004, 6
+  );
+  tourArc.visible = true;
+  comet.visible = true;
+
+  addTween(dur, easeInOutSine, k => {
+    const dir = slerpDir(A, B, k);
+    const approach = THREE.MathUtils.smoothstep(k, 0, 0.35);
+    const r = startR + (cruise - startR) * approach + bump * Math.sin(Math.PI * k);
+    camera.position.copy(dir).multiplyScalar(r);
+    camera.lookAt(slerpDir(A, B, Math.min(1, k + 0.06)));
+    comet.position.copy(dir).multiplyScalar(1.005 + arcAlt * Math.sin(Math.PI * k));
+    tourFillEl.style.width = (k * 100).toFixed(1) + '%';
+  }, () => {
+    // пауза над городом — показать карточку
+    const c = CITIES[bIdx];
+    tourInfoEl.textContent = cityInfoLine(c);
+    addTween(1600, t => t, () => {
+      camera.lookAt(B); // держим взгляд на городе
+      tourInfoEl.textContent = cityInfoLine(c); // обновляем время
+    }, () => {
+      if (leg + 1 >= total) stopTour(true);
+      else runTourLeg(route, leg + 1);
+    }, 'tour');
+  }, 'tour');
+}
+
+function startTour() {
+  if (tourOn) return;
+  cancelTweens(); // прерываем интро/полёт к городу, если были
+  tourOn = true;
+  flying = true;
+  clearTimeout(idleTimer);
+  controls.enabled = false;
+  controls.autoRotate = false;
+  setHovered(null, 0, 0);
+
+  const route = buildRoute();
+  hud.classList.add('show');
+  tgTour.checked = true;
+  tourFillEl.style.width = '0%';
+  tourFocus = 0;
+
+  // стартовая пауза над домом
+  const homeDirV = markerGroups[0].pos.clone().normalize();
+  const r0 = camera.position.length();
+  tourLegEl.textContent = `Старт: ${HOME}`;
+  tourCountEl.textContent = `1/${route.length - 1}`;
+  tourInfoEl.textContent = cityInfoLine(CITIES[0]);
+  comet.position.copy(homeDirV).multiplyScalar(1.03);
+  comet.visible = true;
+
+  addTween(900, easeOutCubic, k => {
+    camera.position.copy(homeDirV).multiplyScalar(r0 + (1.9 - r0) * k);
+    camera.lookAt(homeDirV);
+  }, () => runTourLeg(route, 0), 'tour');
+}
+
+function stopTour(finished = false) {
+  if (!tourOn) return;
+  tourOn = false;
+  flying = false;
+  tourFocus = null;
+  cancelTweens('tour');
+  tourArc.visible = false;
+  comet.visible = false;
+  hud.classList.remove('show');
+  tgTour.checked = false;
+  controls.enabled = true;
+  if (finished) {
+    const dir = camera.position.clone().normalize();
+    flyToDir(dir, 3.1, 1200, () => scheduleAutoRotate());
+  } else {
+    scheduleAutoRotate();
+  }
+}
+
+tgTour.addEventListener('change', () => { if (tgTour.checked) startTour(); else stopTour(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && tourOn) stopTour(false); });
+renderer.domElement.addEventListener('pointerdown', () => { if (tourOn) stopTour(false); });
+
+/* ---------- Наведение и клики по маркерам ---------- */
+
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2(-10, -10);
+let hovered = null;
+let hoverMinor = -1;      // индекс города мира под курсором
+let minorHoverAt = 0;
+let labelSelectAt = 0;
+let downX = 0, downY = 0;
+
+renderer.domElement.addEventListener('pointermove', e => {
+  pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+renderer.domElement.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return; // это было вращение
+  if (hovered !== null) { flyToCity(CITIES[hovered]); return; }
+  if (hoverMinor >= 0 && world.latArr) {
+    const dir = latLonToVec3(world.latArr[hoverMinor], world.lonArr[hoverMinor], 1).normalize();
+    flyToDir(dir, THREE.MathUtils.clamp(camera.position.length(), 1.9, 2.4), 1400, () => scheduleAutoRotate());
+  }
+});
+
+const tooltip = document.getElementById('tooltip');
+const ttName = document.getElementById('tt-name');
+const ttCountry = document.getElementById('tt-country');
+const ttTime = document.getElementById('tt-time');
+const ttPop = document.getElementById('tt-pop');
+
+function setHovered(idx, screenX, screenY) {
+  if (idx === hovered && idx !== null) {
+    // просто двигаем карточку
+    tooltip.style.left = screenX + 'px';
+    tooltip.style.top = screenY + 'px';
+    return;
+  }
+  if (idx === null) {
+    hovered = null;
+    tooltip.classList.remove('show');
+    renderer.domElement.style.cursor = 'grab';
+    return;
+  }
+  hovered = idx;
+  const c = CITIES[idx];
+  ttName.textContent = c.name;
+  ttCountry.textContent = c.country;
+  ttTime.textContent = localTime(c.tz);
+  ttPop.textContent = 'Население: ' + fmtPop(c.popM);
+  tooltip.style.left = screenX + 'px';
+  tooltip.style.top = screenY + 'px';
+  tooltip.classList.add('show');
+  renderer.domElement.style.cursor = 'pointer';
+}
+
+/** Карточка города из мировой базы (122 тыс.) */
+function showMinorTooltip(i, sx, sy) {
+  const cc = world.cityCC && world.ccTable ? world.ccTable[world.cityCC[i]] : null;
+  ttName.textContent = cityName(i);
+  ttCountry.textContent = cc ? `${cc.ru} ${cc.flag}` : '';
+  ttTime.textContent = solarTime(world.lonArr[i]) + ' ☀';
+  ttPop.textContent = 'Население: ' + fmtPopFull(world.popArr[i]);
+  tooltip.style.left = sx + 'px';
+  tooltip.style.top = sy + 'px';
+  tooltip.classList.add('show');
+  renderer.domElement.style.cursor = 'pointer';
+}
+
+/* ---------- Размер окна ---------- */
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  refreshPointsScale();
+});
+
+/* ---------- Цикл анимации (единственный) ---------- */
+
+const clock = new THREE.Clock();
+let sunRefreshAt = 0;
+let tooltipRefreshAt = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const t = clock.getElapsedTime();
+
+  updateTweens(now);
+  controls.update();
+
+  // Солнце: пересчитывать раз в 30 с (реальное время)
+  if (now > sunRefreshAt) { updateSun(); sunRefreshAt = now + 30000; }
+
+  // вращение облаков (независимый дрейф)
+  clouds.rotation.y = t * 0.0045;
+
+  // пульсация маркеров
+  markerGroups.forEach((m, i) => {
+    const p = (t * 0.35 + m.ringOffset) % 1;
+    m.ring.scale.setScalar(0.02 + 0.065 * p);
+    m.ring.material.opacity = (1 - p) * 0.55 * (m.dot.visible ? 1 : 0);
+    const emphasized = (hovered !== null && CITIES[hovered] === m.city) || tourFocus === i;
+    if (emphasized) {
+      m.dot.scale.setScalar(m.isHome ? 0.078 : 0.064);
+    } else {
+      m.dot.scale.setScalar(m.isHome ? 0.06 : 0.048);
+    }
+  });
+
+  // дуги: время
+  arcMats.forEach(m => { m.uniforms.uTime.value = t; });
+
+  // ховер: избранные маркеры — каждый кадр; города мира — не чаще 120 мс
+  if (!flying) {
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(markerGroups.filter(m => m.dot.visible).map(m => m.dot), false);
+    if (hits.length) {
+      hoverMinor = -1;
+      const idx = hits[0].object.userData.cityIndex;
+      const proj = markerGroups[idx].pos.clone().project(camera);
+      setHovered(idx, (proj.x * 0.5 + 0.5) * window.innerWidth, (-proj.y * 0.5 + 0.5) * window.innerHeight);
+      if (now > tooltipRefreshAt) {
+        ttTime.textContent = localTime(CITIES[idx].tz);
+        tooltipRefreshAt = now + 15000;
+      }
+    } else {
+      setHovered(null, 0, 0);
+      if (pointsCloud && pointsCloud.visible && world.N && now > minorHoverAt) {
+        minorHoverAt = now + 120;
+        const camDist = camera.position.length();
+        raycaster.params.Points.threshold = 0.0038 * Math.max(1, camDist * 0.55);
+        const ph = raycaster.intersectObject(pointsCloud, false);
+        const horizon = 1 / camDist;
+        const z = THREE.MathUtils.clamp((camDist - 1.35) / 8.65, 0, 1);
+        const thr = (2000 + (3e6 - 2000) * Math.pow(z, 1.15)) * 0.7;
+        hoverMinor = -1;
+        _v3.copy(camera.position).normalize();
+        for (const h of ph) {
+          const i = h.index, o = i * 3;
+          const facing = world.positions[o] * _v3.x + world.positions[o + 1] * _v3.y + world.positions[o + 2] * _v3.z;
+          if (facing < horizon || world.popArr[i] < thr) continue;
+          hoverMinor = i;
+          break;
+        }
+      }
+      if (hoverMinor >= 0) {
+        const o = hoverMinor * 3;
+        _proj.set(world.positions[o], world.positions[o + 1], world.positions[o + 2]).project(camera);
+        showMinorTooltip(hoverMinor, (_proj.x * 0.5 + 0.5) * window.innerWidth, (-proj.y * 0.5 + 0.5) * window.innerHeight);
+      }
+    }
+  } else {
+    hoverMinor = -1;
+    setHovered(null, 0, 0);
+  }
+
+  // метки: пересборка списка каждые 160 мс, позиции — каждый кадр
+  if (now > labelSelectAt) { selectLabels(); labelSelectAt = now + 160; }
+  updateLabelPool();
+
+  // LOD-порог облака точек
+  pointsUniforms.uCamDist.value = camera.position.length();
+
+  renderer.render(scene, camera);
+}
+
+/* ---------- Интро после загрузки ---------- */
+
+animate(); // единственный запуск цикла — экран загрузки всё равно сверху
+
+manager.onLoad = () => {
+  loaderFill.style.width = '100%';
+  setTimeout(() => {
+    loadingEl.classList.add('done');
+    // плавный подлёт: Атлантика → Европа (Франкфурт)
+    const targetDir = latLonToVec3(HOME_CITY.lat, HOME_CITY.lon, 1).normalize();
+    flyToDir(targetDir, 3.1, 2600, () => {
+      controls.enabled = true;
+      controls.autoRotate = tgRotate.checked;
+    });
+  }, 350);
+};
